@@ -1,4 +1,4 @@
-module github.com/mike1808/h264decoder
+module github.com/SaverioFrancesco/vp8decoder
 
 go 1.14
 
