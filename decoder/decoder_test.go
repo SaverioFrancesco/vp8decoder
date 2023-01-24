@@ -1,8 +1,8 @@
-package decoder_test
+package vp8decoder_test
 
 import (
 	"fmt"
-	"github.com/mike1808/h264decoder/decoder"
+	"github.com/SaverioFrancesco/vp8decoder/vp8decoder"
 	"gocv.io/x/gocv"
 	"image/jpeg"
 	"io"

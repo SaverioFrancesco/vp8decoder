@@ -1,14 +1,17 @@
-package decoder
+package vp8decoder
 
 import "C"
 import (
 	"errors"
+	"image"
+	"unsafe"
+
 	"github.com/ailumiyana/goav-incr/goav/avcodec"
 	"github.com/ailumiyana/goav-incr/goav/avutil"
 	"github.com/ailumiyana/goav-incr/goav/swscale"
-	"github.com/mike1808/h264decoder/rgb"
-	"image"
-	"unsafe"
+
+	"github.com/mike1808/h264decoder/rgb" // its the same as the original h264
+	//"github.com/SaverioFrancesco/vp8decoder/rgb"
 )
 
 type PixelFormat int
@@ -21,7 +24,7 @@ const (
 // our avcodec wrapper doesn't have this constant
 const av_PIX_FMT_BGR24 = 3
 
-type H264Decoder struct {
+type VP8Decoder struct {
 	context   *avcodec.Context
 	parser    *avcodec.ParserContext
 	frame     *avutil.Frame
@@ -29,18 +32,18 @@ type H264Decoder struct {
 	converter *converter
 }
 
-// Frame represents decoded frame from H.264 stream
+// Frame represents decoded frame from VP8 stream
 // Data field will contain bitmap data in the pixel format specified in the decoder
 type Frame struct {
 	Data                  []byte
 	Width, Height, Stride int
 }
 
-// New creates new H264Decoder
+// New creates new VP8Decoder
 // It accepts expected pixel format for the output which
-func New(pxlFmt PixelFormat) (*H264Decoder, error) {
+func New(pxlFmt PixelFormat) (*VP8Decoder, error) {
 	avcodec.AvcodecRegisterAll()
-	codec := avcodec.AvcodecFindDecoder(avcodec.CodecId(avcodec.AV_CODEC_ID_H264))
+	codec := avcodec.AvcodecFindDecoder(avcodec.CodecId(avcodec.AV_CODEC_ID_VP8))
 	if codec == nil {
 		return nil, errors.New("cannot find decoder")
 	}
@@ -52,7 +55,7 @@ func New(pxlFmt PixelFormat) (*H264Decoder, error) {
 	if context.AvcodecOpen2(codec, nil) < 0 {
 		return nil, errors.New("cannot open content")
 	}
-	parser := avcodec.AvParserInit(avcodec.AV_CODEC_ID_H264)
+	parser := avcodec.AvParserInit(avcodec.AV_CODEC_ID_VP8)
 	if parser == nil {
 		return nil, errors.New("cannot init parser")
 	}
@@ -82,7 +85,7 @@ func New(pxlFmt PixelFormat) (*H264Decoder, error) {
 		return nil, err
 	}
 
-	h := &H264Decoder{
+	h := &VP8Decoder{
 		context:   context,
 		parser:    parser,
 		frame:     frame,
@@ -95,7 +98,7 @@ func New(pxlFmt PixelFormat) (*H264Decoder, error) {
 
 // Decode tries to parse the input data and return list of frames
 // If input data doesn't contain any H.264 frames the list will be empty
-func (h *H264Decoder) Decode(data []byte) ([]*Frame, error) {
+func (h *VP8Decoder) Decode(data []byte) ([]*Frame, error) {
 	var frames []*Frame
 
 	for len(data) > 0 {
@@ -117,7 +120,7 @@ func (h *H264Decoder) Decode(data []byte) ([]*Frame, error) {
 
 // Close free ups memory used for decoder structures
 // It needs to be called to prevent memory leaks
-func (h *H264Decoder) Close() {
+func (h *VP8Decoder) Close() {
 	h.converter.Close()
 
 	avcodec.AvParserClose(h.parser)
@@ -138,7 +141,7 @@ func (f *Frame) ToRGB() *rgb.Image {
 	}
 }
 
-func (h *H264Decoder) parse(data []byte, bs int) int {
+func (h *VP8Decoder) parse(data []byte, bs int) int {
 	return h.context.AvParserParse2(
 		h.parser,
 		h.pkt,
@@ -148,11 +151,11 @@ func (h *H264Decoder) parse(data []byte, bs int) int {
 	)
 }
 
-func (h *H264Decoder) isFrameAvailable() bool {
+func (h *VP8Decoder) isFrameAvailable() bool {
 	return h.pkt.Size() > 0
 }
 
-func (h *H264Decoder) decodeFrame() (*avutil.Frame, error) {
+func (h *VP8Decoder) decodeFrame() (*avutil.Frame, error) {
 	gotPicture := 0
 	nread := h.context.AvcodecDecodeVideo2((*avcodec.Frame)(unsafe.Pointer(h.frame)), &gotPicture, h.pkt)
 	if nread < 0 || gotPicture == 0 {
@@ -162,7 +165,7 @@ func (h *H264Decoder) decodeFrame() (*avutil.Frame, error) {
 	return h.frame, nil
 }
 
-func (h *H264Decoder) decodeFrameImpl(data []byte) (*Frame, int, bool, error) {
+func (h *VP8Decoder) decodeFrameImpl(data []byte) (*Frame, int, bool, error) {
 	size := len(data)
 	nread := h.parse(data, size)
 
